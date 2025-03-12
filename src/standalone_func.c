@@ -85,14 +85,13 @@ struct udpheader* populate_udpheader(char datagram[], const char* client_ip, str
     return udph;
 }
 
-struct timeval send_syn(const char* server_ip, const int server_port)
+const int open_tcp_raw_socket(const int listening_timeout)
 {
-    struct timeval error_time = {0, 0};
-    int sock = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
+    int sock = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
     if (sock < 0)
     {
         perror("Socket creation failed");
-        return error_time;
+        exit(EXIT_FAILURE);
     }
 
     int one = 1;
@@ -100,65 +99,173 @@ struct timeval send_syn(const char* server_ip, const int server_port)
     {
         perror("Cannot set HDRINCL");
         close(sock);
-        return error_time;
+        exit(EXIT_FAILURE);
     }
 
-    char datagram[60];
-    memset(datagram, 0, sizeof(datagram));
-    
-    struct sockaddr_in sin; // Populate with destionation address and port.
-    in_addr_t server_addr = inet_addr(server_ip);
+    struct timeval timeout;
+    timeout.tv_sec = (listening_timeout / 1000000) - 5;
+    timeout.tv_usec = 0;
 
-    memset(&sin, 0, sizeof(sin)); // Sets everything zeros.
-    sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = server_addr;
-    sin.sin_port = htons(server_port);
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        perror("Failed to set socket timeout");
+        close(sock);
+        exit(EXIT_FAILURE);
+    }
+    return sock;
+}
 
-    struct ipheader* iph = populate_ipheader(datagram, CLIENT_IP, &sin, 0, IPPROTO_TCP);
-    struct tcpheader* tcph = populate_tcpheader(datagram, CLIENT_IP, &sin, TH_SYN);
+void create_syn_packet(char* datagram, size_t datagram_size, struct sockaddr_in* sin)
+{
+    memset(datagram, 0, datagram_size);
 
-    if (sendto(sock, datagram, ntohs(iph->ip_len), 0, (struct sockaddr*)&sin, sizeof(sin)) < 0)
+    struct ipheader* iph = populate_ipheader(datagram, CLIENT_IP, sin, 0, IPPROTO_TCP);
+    struct tcpheader* tcph = populate_tcpheader(datagram, CLIENT_IP, sin, TH_SYN);
+}
+
+void send_syn_packet(const int sock, const struct sockaddr_in sin, const char* syn_packet, size_t packet_size)
+{
+    if (sendto(sock, syn_packet, packet_size, 0, (struct sockaddr*)&sin, sizeof(sin)) < 0)
     {
         perror("Failed to send SYN packet.\n");
         close(sock);
-        return error_time;
     }
-    printf("Sent a syn packet.\n");
-
-    struct timeval received_time = receive_rst(sock);
-    close(sock);
-    return received_time;
+    printf("Sent a SYN packet.\n");
 }
 
-struct timeval receive_rst(const int sock)
+int send_syn_and_train(void* arg)
+{
+    int tcp_socket = open_tcp_raw_socket(INTER_MEASUREMENT_TIME);
+
+    in_addr_t server_addr = inet_addr(SERVER_IP);
+    struct sockaddr_in pre_sin, udp_sin, post_sin;
+
+    memset(&pre_sin, 0, sizeof(pre_sin)); // Sets everything zeros.
+    pre_sin.sin_family = AF_INET;
+    pre_sin.sin_addr.s_addr = server_addr;
+    pre_sin.sin_port = htons(UNCORP_TCP_HEAD);
+
+    memset(&udp_sin, 0, sizeof(udp_sin)); // Sets everything zeros.
+    udp_sin.sin_family = AF_INET;
+    udp_sin.sin_addr.s_addr = server_addr;
+    udp_sin.sin_port = htons(7777);
+
+    memset(&post_sin, 0, sizeof(post_sin)); // Sets everything zeros.
+    post_sin.sin_family = AF_INET;
+    post_sin.sin_addr.s_addr = server_addr;
+    post_sin.sin_port = htons(UNCORP_TCP_TAIL);
+
+    char pre_syn_packet[sizeof(struct ipheader) + sizeof(struct tcpheader)];
+    create_syn_packet(pre_syn_packet, sizeof(pre_syn_packet), &pre_sin);
+
+    char post_syn_packet[sizeof(struct ipheader) + sizeof(struct tcpheader)];
+    create_syn_packet(post_syn_packet, sizeof(post_syn_packet), &post_sin);
+
+    int packet_size = UDP_SIZE + sizeof(struct ipheader) + sizeof(struct udpheader);
+    char (*zero_packets)[packet_size] = malloc(NUM_OF_UDP_PACKETS * packet_size);  // Creates an empty train for the zero-packet train.
+    char (*random_packets)[packet_size] = malloc(NUM_OF_UDP_PACKETS * packet_size); // Creates an empty train for the random-packet train.
+    if (!zero_packets || !random_packets)
+    {
+        perror("Memory allocation for raw packet trains failed");
+        free(zero_packets);
+        free(random_packets);
+        return thrd_error;
+    }
+    create_raw_packet_trains(CLIENT_IP, &udp_sin, packet_size, NUM_OF_UDP_PACKETS, zero_packets, random_packets);
+
+    send_syn_packet(tcp_socket, pre_sin, pre_syn_packet, sizeof(pre_syn_packet));
+    send_raw_packet_train(&udp_sin, packet_size, NUM_OF_UDP_PACKETS, zero_packets);
+    send_syn_packet(tcp_socket, post_sin, post_syn_packet, sizeof(post_syn_packet));
+
+    usleep(INTER_MEASUREMENT_TIME);
+
+    send_syn_packet(tcp_socket, pre_sin, pre_syn_packet, sizeof(pre_syn_packet));
+    send_raw_packet_train(&udp_sin, packet_size, NUM_OF_UDP_PACKETS, random_packets);
+    send_syn_packet(tcp_socket, post_sin, post_syn_packet, sizeof(post_syn_packet));
+
+    free(zero_packets);
+    free(random_packets);
+
+    close(tcp_socket);
+
+    return thrd_success;
+}
+
+long receive_rsts(const int sock)
 {
     struct sockaddr_in server_addr;
     socklen_t addr_len = sizeof(server_addr);
     char buffer[1024];
+    struct timeval received_time[2];
 
-    struct timeval received_time;
+    struct ipheader* recv_iph;
+    struct tcpheader* recv_tcph;
 
-    int bytes_received = recvfrom(sock, buffer, sizeof(buffer), 0, (struct sockaddr*)&server_addr, &addr_len);
-    gettimeofday(&received_time, NULL);
+    int rst_count = 0;
+    long train_duration = -1;
 
-    if (bytes_received > 0)
+    unsigned server_ip_bin = inet_addr(SERVER_IP);
+
+    while (rst_count < 2)
     {
-        struct ipheader* recv_iph = (struct ipheader*)buffer;
-        struct tcpheader* recv_tcph = (struct tcpheader*)(buffer + sizeof(struct ipheader));
+        int bytes_received = recvfrom(sock, buffer, sizeof(buffer), 0, (struct sockaddr*)&server_addr, &addr_len);
+        if (bytes_received < 0) 
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                printf("Timeout waiting for RST packet.\n");
+            else
+                perror("recvfrom() failed");
+            return -1;
+        }
+
+        gettimeofday(&received_time[rst_count], NULL);
+
+        recv_iph = (struct ipheader*)buffer;
+        recv_tcph = (struct tcpheader*)(buffer + sizeof(struct ipheader));
+
+        if (server_ip_bin != recv_iph->ip_src)
+        {
+            printf("Discarded a packet from unknown IP. Continue listening..\n");
+            continue;
+        }
 
         if (recv_tcph->th_flags & TH_RST)
         {
-            printf("Received RST pakcet at: %ld.%06ld seconds.\n", received_time.tv_sec, received_time.tv_usec);
-            return received_time;
+            rst_count++;
+            printf("Received an RST packet from the server.\n");
         }
+        else
+            printf("Received a non-RST packet. Continue listening..\n");
     }
-    struct timeval error_time = {0, 0};
-    return error_time;
+
+    train_duration = (received_time[1].tv_sec - received_time[0].tv_sec) * 1000 +
+                     (received_time[1].tv_usec - received_time[0].tv_usec) / 1000;
+    
+    printf("Train reception duration: %ld ms.\n", train_duration);
+    return train_duration;
+}
+
+
+int listen_to_rsts(void* arg)
+{
+    int tcp_socket = open_tcp_raw_socket(INTER_MEASUREMENT_TIME);
+
+    long first_train_duration = receive_rsts(tcp_socket);
+
+    usleep(INTER_MEASUREMENT_TIME - 5000000);
+
+    long second_train_duration = receive_rsts(tcp_socket);
+
+    if (first_train_duration > 0 && second_train_duration > 0)
+    {
+        printf("Succeeded in receiving four RSTs properly. The difference is: %ld.\n", labs(first_train_duration - second_train_duration));
+        return thrd_success;
+    }
+    printf("Failed to detect due to insufficient information.");
+    return thrd_error;
 }
 
 void create_raw_packet_trains(const char* client_ip, struct sockaddr_in* server_addr, const int packet_size, const int num_of_packets, char zero_packets[][packet_size], char random_packets[][packet_size])
 {
-//    int packet_size = payload_size + sizeof(struct ipheader) + sizeof(struct udpheader);
     int urandom_fd = open("/dev/urandom", O_RDONLY);
     if (urandom_fd < 0)
     {
@@ -216,49 +323,9 @@ void send_raw_packet_train(struct sockaddr_in* server_addr, const int packet_siz
         if (sendto(sock, train[i], ntohs(packet_size), 0, (struct sockaddr*)server_addr, sizeof(*server_addr)) < 0) {
             perror("Failed to send packet");
         } else {
-            printf("Raw UDP packet sent successfully!\n");
+            //printf("Raw UDP packet sent successfully!\n");
         }
-    }    
-}
-
-long measure_time_diff(const char* client_ip, const char* server_ip, const int server_port_head, const int server_port_tail, const int num_of_packets, const int payload_size)
-{
-    int packet_size = payload_size + sizeof(struct ipheader) + sizeof(struct udpheader);
-    char (*zero_packets)[packet_size] = malloc(num_of_packets * packet_size);  // Creates an empty train for the zero-packet train.
-    char (*random_packets)[packet_size] = malloc(num_of_packets * packet_size); // Creates an empty train for the random-packet train.
-    if (!zero_packets || !random_packets)
-    {
-        perror("Memory allocation for raw packet trains failed");
-        free(zero_packets);
-        free(random_packets);
-        exit(EXIT_FAILURE);
     }
-    struct sockaddr_in server_addr_in_udp;
-    in_addr_t server_addr = inet_addr(server_ip);
-    memset(&server_addr_in_udp, 0, sizeof(server_addr_in_udp)); // Sets everything zeros.
-    server_addr_in_udp.sin_family = AF_INET;
-    server_addr_in_udp.sin_addr.s_addr = server_addr;
-    server_addr_in_udp.sin_port = htons(7777);
-    create_raw_packet_trains(client_ip, &server_addr_in_udp, packet_size, num_of_packets, zero_packets, random_packets);
-
-    struct timeval zero_head_time = send_syn(server_ip, server_port_head);
-    send_raw_packet_train(&server_addr_in_udp, packet_size, num_of_packets, zero_packets);
-    struct timeval zero_tail_time = send_syn(server_ip, server_port_tail);
-
-    long zero_train_duration = (zero_tail_time.tv_sec - zero_head_time.tv_sec) * 1000 + 
-                               (zero_tail_time.tv_usec - zero_head_time.tv_usec) / 1000;
-    printf("Zero-packet train duration: %ld ms.\n", zero_train_duration);
-
-    usleep(INTER_MEASUREMENT_TIME);
-
-    struct timeval random_head_time = send_syn(server_ip, server_port_head);
-    send_raw_packet_train(&server_addr_in_udp, packet_size, num_of_packets, random_packets);
-    struct timeval random_tail_time = send_syn(server_ip, server_port_tail);
-
-    long random_train_duration = (random_tail_time.tv_sec - random_head_time.tv_sec) * 1000 + 
-                                 (random_tail_time.tv_usec - random_head_time.tv_usec) / 1000;
-    printf("Randome-packet train duration: %ld ms.\n", random_train_duration);
-
-    return labs(zero_train_duration - random_train_duration);
+    close(sock);
 }
 

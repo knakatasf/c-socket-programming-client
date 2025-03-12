@@ -49,20 +49,20 @@ int open_tcp_socket(const char* server_ip, const int server_port)
     return sock;
 }
 
-void send_packet_train(const int client_port, const int server_port, const int num_of_packets, const int packet_size)
+void send_packet_trains(const char* client_ip, const int client_port, const char* server_ip, const int server_port, const int num_of_packets, const int packet_size)
 {
     struct sockaddr_in client_addr, server_addr;
     int df_flag = IP_PMTUDISC_DO;
 
     memset(&client_addr, 0, sizeof(client_addr));
     client_addr.sin_family = AF_INET;
-    client_addr.sin_addr.s_addr = INADDR_ANY;
+    client_addr.sin_addr.s_addr = inet_addr(client_ip);
     client_addr.sin_port = htons(client_port);
 
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(server_port);
-    inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr);
+    inet_pton(AF_INET, server_ip, &server_addr.sin_addr);
 
     int sock = socket(PF_INET, SOCK_DGRAM, 0);
     if (setsockopt(sock, IPPROTO_IP, IP_MTU_DISCOVER, &df_flag, sizeof(df_flag)) < 0) { // Don't fragment bit is set.
@@ -70,7 +70,6 @@ void send_packet_train(const int client_port, const int server_port, const int n
         close(sock);
         exit(EXIT_FAILURE);
     }
-    printf("Socket for udp communication opened.\n");
 
     if (bind(sock, (struct sockaddr*)&client_addr, sizeof(client_addr)) < 0) // Specifies the client port.
     {
@@ -92,7 +91,9 @@ void send_packet_train(const int client_port, const int server_port, const int n
     create_trains(num_of_packets, packet_size, zero_packets, random_packets);
     send_udp_train(sock, &server_addr, num_of_packets, packet_size, zero_packets); // Sends the zero-packet train.
     printf("Sent zero-packet train.\n");
+
     usleep(INTER_MEASUREMENT_TIME);
+    
     send_udp_train(sock, &server_addr, num_of_packets, packet_size, random_packets); // Sends the random-packet train.
     printf("Sent random-packet train.\n");
 
@@ -107,7 +108,7 @@ void send_packet_train(const int client_port, const int server_port, const int n
  *  num_of_packets: The number of packets in each train.
  *  packet_size: The size of the packet.
  */
-void create_trains(int num_of_packets, int packet_size, char zero_packets[][packet_size], char random_packets[][packet_size])
+void create_trains(const int num_of_packets, const int packet_size, char zero_packets[][packet_size], char random_packets[][packet_size])
 {   
     int urandom_fd = open("/dev/urandom", O_RDONLY);
     if (urandom_fd < 0)
@@ -130,7 +131,7 @@ void create_trains(int num_of_packets, int packet_size, char zero_packets[][pack
     printf("Creation of packet trains finished.\n");
 }
 
-void send_udp_train(int sock, const struct sockaddr_in* server_addr, int num_of_packets, int packet_size, char udp_train[][packet_size])
+void send_udp_train(const int sock, const struct sockaddr_in* server_addr, const int num_of_packets, const int packet_size, const char udp_train[][packet_size])
 {
     for (int i = 0; i < num_of_packets; i++)
     {
@@ -153,7 +154,7 @@ long receive_result(const char* server_ip, const int server_port)
     return result;
 }
 
-void judge_result(long result)
+void judge_result(const long result)
 {
     if (result < 0)
         printf("Invalid result input.\n");

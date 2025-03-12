@@ -13,12 +13,14 @@ void send_json(const char*, const char*, const int);
 
 int open_tcp_socket(const char*, const int);
 
-void send_packet_train(const int client_port, const int server_port, const int num_of_packets, const int packet_size);
+void send_packet_trains(const char*, const int, const char*, const int, const int, const int);
 
-void create_trains(int num_of_packets, int packet_size, char zero_packets[][packet_size], char random_packets[][packet_size]);
-void send_udp_train(int sock, const struct sockaddr_in* server_addr, int num_of_packets, int packet_size, char udp_train[][packet_size]);
-long receive_result(const char* server_ip, const int server_port);
+void create_trains(const int, const int packet_size, char[][packet_size], char[][packet_size]);
 
-void judge_result(long);
+void send_udp_train(const int, const struct sockaddr_in*, const int, const int packet_size, const char udp_train[][packet_size]);
+
+long receive_result(const char*, const int);
+
+void judge_result(const long);
 
 #endif

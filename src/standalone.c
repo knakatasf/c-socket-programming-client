@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <threads.h>
 #include <cjson/cJSON.h>
 #include <fcntl.h>
 
@@ -18,5 +19,24 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
     load_config(argv[1]);
-    long zero_packet_duration = measure_time_diff(CLIENT_IP, SERVER_IP, UNCORP_TCP_HEAD, UNCORP_TCP_TAIL, NUM_OF_UDP_PACKETS, UDP_SIZE);
+
+    thrd_t sender_thread, listener_thread;
+
+    if (thrd_create(&sender_thread, send_syn_and_train, NULL) != thrd_success)
+    {
+        perror("Failed to create sender thread.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (thrd_create(&listener_thread, listen_to_rsts, NULL) != thrd_success)
+    {
+        perror("Failed to create listener thread.\n");
+        return EXIT_FAILURE;
+    }
+
+    thrd_join(sender_thread, NULL);
+    thrd_join(listener_thread, NULL);
+
+    printf("Program finished.\n");
+    return EXIT_SUCCESS;
 }
