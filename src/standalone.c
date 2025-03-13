@@ -37,6 +37,5 @@ int main(int argc, char* argv[])
     thrd_join(sender_thread, NULL);
     thrd_join(listener_thread, NULL);
 
-    printf("Program finished.\n");
     return EXIT_SUCCESS;
 }

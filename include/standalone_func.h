@@ -1,3 +1,4 @@
+#include "client_func.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,7 +24,7 @@ struct ipheader* populate_ipheader(char[], const char*, struct sockaddr_in*, con
 
 struct tcpheader* populate_tcpheader(char[], const char*, struct sockaddr_in*, const unsigned char);
 
-const int open_tcp_raw_socket();
+int open_tcp_raw_socket();
 
 void send_syn_packet(const int sock, const struct sockaddr_in sin, const char* syn_packet, size_t packet_size);
 

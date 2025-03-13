@@ -9,9 +9,9 @@
 #include <cjson/cJSON.h>
 #include <fcntl.h>
 
-void send_json(const char*, const char*, const int);
-
 int open_tcp_socket(const char*, const int);
+
+void send_json(const char*, const char*, const int);
 
 void send_packet_trains(const char*, const int, const char*, const int, const int, const int);
 
