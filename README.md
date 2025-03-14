@@ -109,7 +109,7 @@ The application operates in three phases to detect compression along the network
     ```
     No compression was detected.
     ```
-    
+
 ### 4.2 Standalone Application
 This mode operates without a dedicated server.
 
@@ -126,3 +126,7 @@ This mode operates without a dedicated server.
 #### 3. Compression Detection
 - The detection method is the same as the Client-Server Application.
 - If **RST packets are not received**, the program outputs:
+  ```
+  Failed to detect due to insufficient information.
+  ```
+
