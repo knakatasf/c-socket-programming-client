@@ -22,7 +22,12 @@ sudo apt-get install libcjson-dev
 ### **Building the Program**
 Navigate to the project directory and compile each component:
 
-#### **Server**
+#### **Client-Server Application/Client**
+```bash
+gcc src/client.c src/client_func.c src/config.c -o client -lcjson
+```
+
+#### **Client-Server Application/Server**
 ```bash
 gcc src/server.c src/server_func.c src/config.c -o server -lcjson
 ```
@@ -30,11 +35,6 @@ gcc src/server.c src/server_func.c src/config.c -o server -lcjson
 #### **Standalone Application**
 ```bash
 gcc src/standalone.c src/standalone_func.c src/config.c src/client_func.c -o standalone -lcjson
-```
-
-#### **Client**
-```bash
-gcc src/client.c src/client_func.c src/config.c -o client -lcjson
 ```
 
 # Configuration File Setup
@@ -65,7 +65,7 @@ Modify `config.json` with the appropriate parameters. **Do not change the keys**
 
 ### **Running the Program**
 
-#### **Client-Server Mode**
+#### **Client-Server Application**
 1. Start the server:
    ```bash
    ./server 7777
@@ -75,34 +75,54 @@ Modify `config.json` with the appropriate parameters. **Do not change the keys**
    ./client config.json
    ```
 
-#### **Standalone Mode**
+#### **Standalone Application**
 Run the standalone application with root privileges:
 
 ```bash
 sudo ./standalone config.json
 ```
 
-## **4. How the Application Works**
+## 4. How the Application Works
 
-### **4.1 Client-Server Application**
-1. **Pre-Probing Phase:**
-   - The client establishes a TCP connection with the server and sends configuration details.
-   - The TCP connection is closed after configuration transmission.
+### 4.1 Client-Server Application
+The application operates in three phases to detect compression along the network path.
 
-2. **Probing Phase:**
-   - The client sends two sets of UDP packet trains (low-entropy and high-entropy data).
-   - The server records the arrival times of the first and last packets.
-   - If the difference in arrival times of the two packet trains exceeds 100 ms (τ = 100 ms), compression is detected.
+#### 1. Pre-Probing Phase
+- The client establishes a TCP connection with the server.
+- Configuration details are sent to the server.
+- The TCP connection is closed after transmission.
 
-3. **Post-Probing Phase:**
-   - The client establishes another TCP connection to receive the results from the server.
+#### 2. Probing Phase
+- The client sends two sets of UDP packet trains:
+  - **Low-entropy packets** (zero-packet train).
+  - **High-entropy packets** (random-packet train).
+- The server records the arrival times of the first and last packets.
 
-### **4.2 Standalone Application**
-1. **Sends a head SYN packet followed by a UDP packet train and a tail SYN packet.**
-2. **Waits for RST packets from the server.**
-   - SYN packets are sent to two different inactive ports.
-   - If compression is present, the timing difference between the RST responses will indicate it.
-3. **If RST packets are not received, the program outputs:**
-   ```
-   Failed to detect due to insufficient information.
-   ```
+#### 3. Post-Probing Phase
+- The client establishes another TCP connection to receive the results.
+- The server calculates the time difference between the two packet trains:
+  - If the difference exceeds **100 ms**, the program outputs:
+    ```
+    Compression detected!
+    ```
+  - Otherwise, it outputs:
+    ```
+    No compression was detected.
+    ```
+    
+### 4.2 Standalone Application
+This mode operates without a dedicated server.
+
+#### 1. Packet Transmission
+- A **head SYN packet** is sent.
+- A **UDP packet train** follows.
+- A **tail SYN packet** is sent.
+
+#### 2. Server Response (RST Packets)
+- SYN packets are sent to two different closed ports.
+- The server responds with **RST packets** (Reset packets).
+- If compression exists, the timing difference between the received RST packets will indicate it.
+
+#### 3. Compression Detection
+- The detection method is the same as the Client-Server Application.
+- If **RST packets are not received**, the program outputs:
