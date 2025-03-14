@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
     load_config(argv[1]);
     send_json(argv[1], SERVER_IP, PRE_TCP_PORT);
     send_packet_trains(CLIENT_IP, CLIENT_UDP_PORT, SERVER_IP, SERVER_UDP_PORT, NUM_OF_UDP_PACKETS, UDP_SIZE);
-    usleep(INTER_MEASUREMENT_TIME);
+    sleep(INTER_MEASUREMENT_TIME);
     long result = receive_result(SERVER_IP, POST_TCP_PORT);
     judge_result(result);
 }

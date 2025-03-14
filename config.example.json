@@ -1,0 +1,13 @@
+{
+    "pre_tcp_port": 7777,  
+    "post_tcp_port": 6666,
+    "client_udp_port": 9876,
+    "server_udp_port": 8765,
+    "uncorp_tcp_head": 9999,
+    "uncorp_tcp_tail": 8888,
+    "server_ip": "123.456.78.9",
+    "udp_payload_size": 1000,
+    "inter_measurement_time": 15,
+    "num_of_udp_packets": 6000,
+    "ttl": 255
+}

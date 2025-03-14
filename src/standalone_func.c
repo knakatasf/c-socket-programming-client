@@ -131,7 +131,7 @@ int open_tcp_raw_socket(const int listening_timeout)
 
     /* Set the timeout for the socket */
     struct timeval timeout;
-    timeout.tv_sec = (listening_timeout / 1000000) - 5;
+    timeout.tv_sec = listening_timeout * 2 / 3;
     timeout.tv_usec = 0;
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         perror("Failed to set socket timeout");
@@ -217,7 +217,7 @@ int send_syn_and_train(void* arg)
     send_raw_packet_train(&udp_sin, packet_size, NUM_OF_UDP_PACKETS, zero_packets);
     send_syn_packet(tcp_socket, post_sin, post_syn_packet, sizeof(post_syn_packet));
 
-    usleep(INTER_MEASUREMENT_TIME);
+    sleep(INTER_MEASUREMENT_TIME);
     
     /* Sends the head SYN packet, random-packet train and tail SYN packet */
     send_syn_packet(tcp_socket, pre_sin, pre_syn_packet, sizeof(pre_syn_packet));
@@ -288,7 +288,7 @@ int listen_to_rsts(void* arg)
     /* Returns the duration of the first train */
     long first_train_duration = receive_rsts(tcp_socket);
 
-    usleep(INTER_MEASUREMENT_TIME - 5000000);
+    sleep(INTER_MEASUREMENT_TIME * 2 / 3);
 
     /* Return the duration of the second train */
     long second_train_duration = receive_rsts(tcp_socket);
@@ -300,7 +300,7 @@ int listen_to_rsts(void* arg)
         judge_result(result);
         return thrd_success;
     }
-    printf("Failed to detect due to insufficient information.");
+    printf("Failed to detect due to insufficient information.\n");
     return thrd_error;
 }
 

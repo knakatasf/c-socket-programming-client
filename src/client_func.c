@@ -150,7 +150,7 @@ void send_packet_trains(const char* client_ip, const int client_port, const char
     /* Sends the zero-packet train */
     send_udp_train(sock, &server_addr, num_of_packets, packet_size, zero_packets);
 
-    usleep(INTER_MEASUREMENT_TIME);
+    sleep(INTER_MEASUREMENT_TIME);
     
     /* Sends the random-packet train */
     send_udp_train(sock, &server_addr, num_of_packets, packet_size, random_packets);
