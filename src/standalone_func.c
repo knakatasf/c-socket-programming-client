@@ -131,7 +131,7 @@ int open_tcp_raw_socket(const int listening_timeout)
 
     /* Set the timeout for the socket */
     struct timeval timeout;
-    timeout.tv_sec = listening_timeout * 2 / 3;
+    timeout.tv_sec = listening_timeout;
     timeout.tv_usec = 0;
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         perror("Failed to set socket timeout");
@@ -170,7 +170,7 @@ void send_syn_packet(const int sock, const struct sockaddr_in sin,
 int send_syn_and_train(void* arg)
 {
     /* Before sending the SYN and packet trains, prepare everything */
-    int tcp_socket = open_tcp_raw_socket(INTER_MEASUREMENT_TIME);
+    int tcp_socket = open_tcp_raw_socket(60); // 60 secs is reasonable for timeout of RST listener socket 
 
     /* Prepare the server's ip address and ports */
     in_addr_t server_addr = inet_addr(SERVER_IP);

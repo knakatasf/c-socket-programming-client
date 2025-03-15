@@ -1,4 +1,4 @@
-# README.txt
+# C Socket Programming - Comporession Detection Application
 
 ## **1. Developer Information**
 **Name:** Koichi Nakata
@@ -6,14 +6,15 @@
 ## **2. Project Overview**
 This project implements two network applications to detect network compression on a network path and locate the compression link:
 1. **Client-Server Application:** Requires cooperation between a client and a server.
-2. **Standalone Application:** Works independently without requiring special software on the other end.
+2. **Standalone Application:** Works independently without requiring any specific software on the other end.
 
-The implementation is inspired by *End-to-End Detection of Compression of Traffic Flows by Intermediaries*. The applications send UDP packet trains with low- and high-entropy data and analyze arrival times to determine if compression is present.
+The applications send UDP packet trains with low- and high-entropy data and analyze arrival times to determine if compression is present. If the time difference is more than a fixed threashold (100 ms), it indicates there is a compression link on the path.
 
 ## **3. Build and Run Instructions**
 
 ### **Prerequisites**
-Before building the program, install the required library on an Ubuntu system:
+Assume the user's machine is in an Ubuntu system.
+Before building the program, install the required library:
 
 ```bash
 sudo apt-get install libcjson-dev
@@ -37,7 +38,7 @@ gcc src/server.c src/server_func.c src/config.c -o server -lcjson
 gcc src/standalone.c src/standalone_func.c src/config.c src/client_func.c -o standalone -lcjson
 ```
 
-# Configuration File Setup
+### Configuration File Setup
 
 Before running the program, copy the example configuration file:
 
@@ -47,7 +48,7 @@ cp config.example.json config.json
 
 Modify `config.json` with the appropriate parameters. **Do not change the keys** in the JSON file.
 
-## Configuration Parameters
+#### Configuration Parameters
 
 - **`pre_tcp_port`** *(Integer)* – Port used for the **pre-probing phase** (sends JSON data to the server).
 - **`post_tcp_port`** *(Integer)* – Port used for the **post-probing phase** (sends results to the client).
@@ -61,7 +62,7 @@ Modify `config.json` with the appropriate parameters. **Do not change the keys**
 - **`num_of_udp_packets`** *(Integer)* – Number of packets in each train.
 - **`ttl`** *(Integer)* – Time-to-Live (TTL) value for UDP packets.
 
-**Note:** The program assumes the values are properly configured before running the program, otherwise it will issue an error.
+**Note:** The program assumes the values are properly configured before running the program; otherwise it will issue an error.
 
 ### **Running the Program**
 
