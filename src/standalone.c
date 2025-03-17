@@ -20,6 +20,10 @@ int main(int argc, char* argv[])
     }
     load_config(argv[1]);
 
+    /* 
+     * Sender thread: Sends SYN packets and packet trains 
+     * Listener thread: Listens to and receives RST packets
+     */
     thrd_t sender_thread, listener_thread;
 
     if (thrd_create(&sender_thread, send_syn_and_train, NULL) != thrd_success)
