@@ -3,6 +3,11 @@
 
 #include <cjson/cJSON.h>
 
+/*
+ * Waiting time for the server to be ready for the post-probing phase.abort
+ * Longer than 60 secs which is the udp socket's timout of the server.
+ */
+#define WAIT_TIME 65 
 #define THRESHOLD 100 // 100 ms
 #define CLIENT_IP "192.168.64.2" // This machine's ip
 
