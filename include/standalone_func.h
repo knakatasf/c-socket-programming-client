@@ -22,7 +22,7 @@ unsigned short csum (unsigned short*, int);
 
 struct ipheader* populate_ipheader(char[], const char*, struct sockaddr_in*, const unsigned short int, const unsigned char);
 
-struct tcpheader* populate_tcpheader(char[], const char*, struct sockaddr_in*, const unsigned char);
+struct tcpheader* populate_tcpheader(char[], const char*, struct sockaddr_in*, const unsigned short int, const unsigned char);
 
 int open_tcp_raw_socket();
 

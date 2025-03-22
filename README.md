@@ -140,7 +140,18 @@ sudo ./standalone config.json
 
 ## **5. Reflection**
 ### 5.1. How IP and TCP/UDP headers work
-I was able to grasp what IP and TCP/UDP headers look like and how they work by working on this hands-on project. Especially for raw socket configurations, I defined every single byte of the header fields one by one
+Through this hands-on project, I gained a deeper understanding of IP and TCP/UDP headers, including their structure and functionality. In particular, configuring raw sockets required me to define each byte of the header fields manually. The most challenging and error-prone part was calculating the **checksum**.
+An IP header’s checksum only verifies the header itself, whereas a TCP/UDP checksum includes not only its own header but also the source IP, destination IP, protocol, and length taken from the IP header, as well as the payload. To calculate this checksum, I needed to declare a pseudo-header and pseudo-datagram.
 
-
-
+### 5.2. Buffers in different layers
+Initially, my application was unable to receive all 12,000 UDP packets from the server. A significant number of packets were dropped upon receipt. To address this, I increased the buffer size for the **transport layer (TCP/UDP)** using the following command:
+```bash
+setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &receive_buffer_size, sizeof(receive_buffer_size));
+```
+However, even after increasing the socket buffer, my application still dropped many packets. I discovered that packets were also being dropped at the **network layer (IP)**. To mitigate this, I ran the following command before launching my application:
+```bash
+sudo sysctl -w net.core.rmem_max=some_value
+```
+After increasing the network layer’s buffer, my application was finally able to receive all 12,000 UDP packets. However, I noticed that Wireshark was still dropping some packets. This confused me, as I assumed Wireshark captured packets directly from the network layer’s kernel buffer. If the network layer’s buffer was now large enough, why was Wireshark still missing packets?
+Upon researching the official Wireshark documentation, I learned that Wireshark retrieves packets from a **capture buffer** located at the network layer. When I examined this buffer within Wireshark’s UI, I found that its size was insufficient to store all incoming packets.
+From this project, I literally realized that there DOES exist the distinct layers. To resolve a network-related problem in the future, I learned that it is crutial to identify the specific layer where the problem originates (Of course, sometimes multiple layers can simultaneously have problems).

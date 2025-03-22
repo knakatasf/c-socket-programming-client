@@ -40,7 +40,9 @@ struct ipheader* populate_ipheader(char datagram[], const char* client_ip, struc
 
 /* Pass the datagram and this function populates it with formatted TCP header. */
 struct tcpheader* populate_tcpheader(char datagram[], const char* client_ip,
-                                     struct sockaddr_in* server_addr, const unsigned char flag)
+                                     struct sockaddr_in* server_addr, 
+                                     const unsigned short int payload_size,
+                                     const unsigned char flag)
 {
     /* The pointer of tcpheader points to the next to ipheader */
     struct tcpheader* tcph = (struct tcpheader*)(datagram + sizeof(struct ipheader));
@@ -77,8 +79,8 @@ struct tcpheader* populate_tcpheader(char datagram[], const char* client_ip,
     psh->protocol = IPPROTO_TCP;
     psh->tcp_length = htons(sizeof(struct tcpheader));
     
-    /* Copies the actual tcpheader to the temporary tcp header */
-    memcpy(&psh.tcp, tcph, sizeof(struct tcpheader));
+    /* Copies the TCP header to the pseudogram */
+    memcpy(pseudogram + pseudo_header_size, tcph, sizeof(struct tcpheader));
 
     /* Copies the payload to the pseudogram if there is any */
     if (payload_size > 0) {
@@ -195,7 +197,7 @@ void create_syn_packet(char* datagram, size_t datagram_size, struct sockaddr_in*
 
     /* The payload is 0 */
     struct ipheader* iph = populate_ipheader(datagram, CLIENT_IP, sin, 0, IPPROTO_TCP);
-    struct tcpheader* tcph = populate_tcpheader(datagram, CLIENT_IP, sin, TH_SYN);
+    struct tcpheader* tcph = populate_tcpheader(datagram, CLIENT_IP, sin, 0, TH_SYN);
 }
 
 /* 
