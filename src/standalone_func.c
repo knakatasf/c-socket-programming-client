@@ -56,23 +56,47 @@ struct tcpheader* populate_tcpheader(char datagram[], const char* client_ip,
     tcph->th_sum = 0;
     tcph->th_urp = 0;
 
+    /* Calculates the TCP checksum including the payload */
+    int pseudo_header_size = sizeof(struct pseudo_tcp_header) - sizeof(struct tcpheader);
+    int total_size = pseudo_header_size + sizeof(struct tcpheader) + payload_size;
+
+    char *pseudogram = malloc(total_size);
+    if (!pseudogram) {
+        perror("Memory allocation failed for TCP checksum");
+        return tcph;
+    }
+
     /* 
      * Need this temporaty tcp header including ip addresses of the client and server 
      * to calculate the checksum since it requires those ip addresses.
      */
-    struct pseudo_tcp_header psh;
-    psh.source_address = inet_addr(client_ip); // Client's ip address
-    psh.dest_address = server_addr->sin_addr.s_addr; // Server's ip address
-    psh.placeholder = 0;
-    psh.protocol = IPPROTO_TCP;
-    psh.tcp_length = htons(sizeof(struct tcpheader));
+    struct pseudo_tcp_header* psh = (struct pseudo_tcp_header*)pseudogram;
+    psh->source_address = inet_addr(client_ip); // Client's ip address
+    psh->dest_address = server_addr->sin_addr.s_addr; // Server's ip address
+    psh->placeholder = 0;
+    psh->protocol = IPPROTO_TCP;
+    psh->tcp_length = htons(sizeof(struct tcpheader));
     
     /* Copies the actual tcpheader to the temporary tcp header */
     memcpy(&psh.tcp, tcph, sizeof(struct tcpheader));
-    
-    /* Calculates the checksum and populates it with th_sum */
-    tcph->th_sum = csum((unsigned short*)&psh, sizeof(struct pseudo_tcp_header) >> 1);
 
+    /* Copies the payload to the pseudogram if there is any */
+    if (payload_size > 0) {
+        memcpy(pseudogram + pseudo_header_size + sizeof(struct tcpheader),
+               datagram + sizeof(struct ipheader) + sizeof(struct tcpheader),
+               payload_size);
+    }
+
+    /* Calculates checksum over the entire pseudogram */
+    tcph->th_sum = csum((unsigned short*)pseudogram, total_size >> 1);
+
+    /* If the size is odd, we need to pad with a zero byte for checksum calculation */
+    if (total_size % 2 != 0) {
+        pseudogram[total_size] = 0;
+        tcph->th_sum = csum((unsigned short*)pseudogram, (total_size + 1) >> 1);
+    }
+
+    free(pseudogram);
     return tcph;
 }
 
