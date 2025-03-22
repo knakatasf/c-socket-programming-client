@@ -25,7 +25,7 @@ struct ipheader* populate_ipheader(char datagram[], const char* client_ip, struc
     iph->ip_tos = 0;
     iph->ip_len = htons(sizeof(struct ipheader) + sizeof(struct tcpheader) + payload_size); // The total size of the packet
     iph->ip_id = htons(54321);
-    iph->ip_off = 0;
+    iph->ip_off = htons(IP_DF);
     iph->ip_ttl = TTL;
     iph->ip_p = protocol_type; // The protocol follows this ipheader (udp or tcp)
     iph->ip_sum = 0;
@@ -88,23 +88,45 @@ struct udpheader* populate_udpheader(char datagram[], const char* client_ip, str
     udph->uh_len = htons(sizeof(struct udpheader) + payload_size); // The udp packet size = udp header + payload
     udph->uh_check = 0;
 
+    /* Calculate the UDP checksum including the payload */
+    int total_size = sizeof(struct pseudo_udp_header) + payload_size;
+    char *pseudogram = malloc(total_size);
+    if (!pseudogram) {
+        perror("Memory allocation failed for UDP checksum");
+        return udph;
+    }
+
     /* 
      * Need this temporaty udp header including ip addresses of the client and server 
      * to calculate the checksum since it requires those ip addresses.
      */
-    struct pseudo_udp_header psh;
-    psh.source_address = inet_addr(client_ip); // Client's ip address
-    psh.dest_address = server_addr->sin_addr.s_addr; // Server's ip address
-    psh.placeholder = 0;
-    psh.protocol = IPPROTO_UDP;
-    psh.udp_length = htons(sizeof(struct udpheader) + payload_size);
+    struct pseudo_udp_header* psh = (struct pseudo_udp_header*)pseudogram;
+    psh->source_address = inet_addr(client_ip); // Client's ip address
+    psh->dest_address = server_addr->sin_addr.s_addr; // Server's ip address
+    psh->placeholder = 0;
+    psh->protocol = IPPROTO_UDP;
+    psh->udp_length = htons(sizeof(struct udpheader) + payload_size);
 
-    /* Copies the actual udpheader to the temporary udp header */
-    memcpy(&psh.udp, udph, sizeof(struct udpheader));
+    /* Copies UDP header to pseudogram */
+    memcpy(pseudogram + sizeof(struct pseudo_udp_header) - sizeof(struct udpheader), 
+           udph, sizeof(struct udpheader));
 
-    /* Calculates the checksum and populates it with uh_check */
-    udph->uh_check = csum((unsigned short*)&psh, sizeof(struct pseudo_udp_header) >> 1);
-    return udph;
+    /* Copies the payload to pseudogram */
+    memcpy(pseudogram + sizeof(struct pseudo_udp_header), 
+           datagram + sizeof(struct ipheader) + sizeof(struct udpheader), 
+           payload_size);
+
+     /* Calculate checksum over the entire pseudogram */
+     udph->uh_check = csum((unsigned short*)pseudogram, total_size >> 1);
+    
+     /* If the size is odd, we need to pad with a zero byte */
+     if (total_size % 2 != 0) {
+         pseudogram[total_size] = 0;
+         udph->uh_check = csum((unsigned short*)pseudogram, (total_size + 1) >> 1);
+     }
+ 
+     free(pseudogram);
+     return udph;
 }
 
 /*
@@ -283,7 +305,7 @@ long receive_rsts(const int sock)
 /* This function is for the listener thread, which takes no arguments */
 int listen_to_rsts(void* arg)
 {
-    int tcp_socket = open_tcp_raw_socket(INTER_MEASUREMENT_TIME);
+    int tcp_socket = open_tcp_raw_socket(TIME_OUT_FOR_SOCKET);
 
     /* Returns the duration of the first train */
     long first_train_duration = receive_rsts(tcp_socket);

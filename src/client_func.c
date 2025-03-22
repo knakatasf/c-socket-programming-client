@@ -185,5 +185,5 @@ void judge_result(const long result)
     else if (result <= THRESHOLD)
         printf("No comporesion was detected.\n");
     else
-        printf("Compression detected!");
+        printf("Compression detected!\n");
 }

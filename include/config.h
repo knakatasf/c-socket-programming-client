@@ -10,6 +10,7 @@
 #define WAIT_TIME 65 
 #define THRESHOLD 100 // 100 ms
 #define CLIENT_IP "192.168.64.2" // This machine's ip
+#define TIME_OUT_FOR_SOCKET 60
 
 extern int PRE_TCP_PORT; // The server's port for pre-probing; default 7777
 extern int POST_TCP_PORT; // The server's port for post-probing; default 6666

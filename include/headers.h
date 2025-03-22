@@ -10,6 +10,8 @@
 #define TH_ECE 0x40
 #define TH_CWR 0x80
 
+#define IP_DF 0x4000  // Don't Fragment flag
+
 struct tcpheader
 {
     unsigned short int th_sport;    // 2 bytes Source Port
