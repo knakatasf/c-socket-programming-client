@@ -138,6 +138,14 @@ Run the standalone application with root privileges:
 sudo ./standalone config.json
 ```
 
+#### **4.3. Allocate enough memory to buffer**
+Sometimes, the kernel buffer (socket buffer at the Network Layer) doesn't have enough buffer memory to receive all the arriving packets at the server side, resulting in dropping many packets.
+In this case, run this command before running the application:
+```bash
+sudo sysctl -w net.core.rmem_max=<buffer size>
+```
+This command will temporarily enlarge the kernel buffer.
+
 ## **5. Reflection**
 ### 5.1. How IP and TCP/UDP headers work
 Through this hands-on project, I gained a deeper understanding of IP and TCP/UDP headers, including their structure and functionality. In particular, configuring raw sockets required me to define each byte of the header fields manually. The most challenging and error-prone part was calculating the **checksum**.

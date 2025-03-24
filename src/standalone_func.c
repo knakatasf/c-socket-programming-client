@@ -58,20 +58,19 @@ struct tcpheader* populate_tcpheader(char datagram[], const char* client_ip,
     tcph->th_sum = 0;
     tcph->th_urp = 0;
 
-    /* Calculates the TCP checksum including the payload */
+    /* pseudo_header_size is: source ip + dest ip + placeholder + protocol + tcp length */
     int pseudo_header_size = sizeof(struct pseudo_tcp_header) - sizeof(struct tcpheader);
+    /* total_size needs to include tcpheader's size + payload's size */
     int total_size = pseudo_header_size + sizeof(struct tcpheader) + payload_size;
 
-    char *pseudogram = malloc(total_size);
+    /* Creates a temporary datagram including everything to caluculate tcp checksum */
+    char* pseudogram = malloc(total_size);
     if (!pseudogram) {
         perror("Memory allocation failed for TCP checksum");
         return tcph;
     }
 
-    /* 
-     * Need this temporaty tcp header including ip addresses of the client and server 
-     * to calculate the checksum since it requires those ip addresses.
-     */
+    /* Populates pseudo tcp header with data that is NOT included in actual tcp header */
     struct pseudo_tcp_header* psh = (struct pseudo_tcp_header*)pseudogram;
     psh->source_address = inet_addr(client_ip); // Client's ip address
     psh->dest_address = server_addr->sin_addr.s_addr; // Server's ip address
@@ -79,10 +78,10 @@ struct tcpheader* populate_tcpheader(char datagram[], const char* client_ip,
     psh->protocol = IPPROTO_TCP;
     psh->tcp_length = htons(sizeof(struct tcpheader));
     
-    /* Copies the TCP header to the pseudogram */
+    /* Copies the actual tcp header to the pseudogram; actual tcp header will start from pseudogram + pseudo_header_size */
     memcpy(pseudogram + pseudo_header_size, tcph, sizeof(struct tcpheader));
 
-    /* Copies the payload to the pseudogram if there is any */
+    /* Copies the payload to the pseudogram if any */
     if (payload_size > 0) {
         memcpy(pseudogram + pseudo_header_size + sizeof(struct tcpheader),
                datagram + sizeof(struct ipheader) + sizeof(struct tcpheader),
@@ -114,7 +113,7 @@ struct udpheader* populate_udpheader(char datagram[], const char* client_ip, str
     udph->uh_len = htons(sizeof(struct udpheader) + payload_size); // The udp packet size = udp header + payload
     udph->uh_check = 0;
 
-    /* Calculate the UDP checksum including the payload */
+    /* Calculate the udp checksum including the payload */
     int total_size = sizeof(struct pseudo_udp_header) + payload_size;
     char *pseudogram = malloc(total_size);
     if (!pseudogram) {
@@ -122,10 +121,7 @@ struct udpheader* populate_udpheader(char datagram[], const char* client_ip, str
         return udph;
     }
 
-    /* 
-     * Need this temporaty udp header including ip addresses of the client and server 
-     * to calculate the checksum since it requires those ip addresses.
-     */
+    /* Populates pseudo_udp_header with the fields that in NOT included in actual udp header */
     struct pseudo_udp_header* psh = (struct pseudo_udp_header*)pseudogram;
     psh->source_address = inet_addr(client_ip); // Client's ip address
     psh->dest_address = server_addr->sin_addr.s_addr; // Server's ip address
@@ -133,7 +129,7 @@ struct udpheader* populate_udpheader(char datagram[], const char* client_ip, str
     psh->protocol = IPPROTO_UDP;
     psh->udp_length = htons(sizeof(struct udpheader) + payload_size);
 
-    /* Copies UDP header to pseudogram */
+    /* Copies udp header to pseudogram */
     memcpy(pseudogram + sizeof(struct pseudo_udp_header) - sizeof(struct udpheader), 
            udph, sizeof(struct udpheader));
 
@@ -190,7 +186,7 @@ int open_tcp_raw_socket(const int listening_timeout)
     return sock;
 }
 
-/* Creates a SYN packet, which is empty */
+/* Creates a SYN packet, whose payload is empty */
 void create_syn_packet(char* datagram, size_t datagram_size, struct sockaddr_in* sin)
 {
     memset(datagram, 0, datagram_size);
