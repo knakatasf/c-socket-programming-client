@@ -5,6 +5,7 @@
     "server_udp_port": 8765,
     "uncorp_tcp_head": 9999,
     "uncorp_tcp_tail": 8888,
+    "client_ip": "123.456.78.9",
     "server_ip": "123.456.78.9",
     "udp_payload_size": 1000,
     "inter_measurement_time": 15,

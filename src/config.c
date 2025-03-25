@@ -11,6 +11,7 @@ int SERVER_UDP_PORT;
 int UNCORP_TCP_HEAD;
 int UNCORP_TCP_TAIL;
 
+char CLIENT_IP[17];
 char SERVER_IP[17];
 
 int UDP_SIZE;
@@ -58,6 +59,7 @@ void load_config(const char* filename)
     const cJSON* uncorp_tcp_head = cJSON_GetObjectItem(json, "uncorp_tcp_head");
     const cJSON* uncorp_tcp_tail = cJSON_GetObjectItem(json, "uncorp_tcp_tail");
 
+    const cJSON* client_ip = cJSON_GetObjectItem(json, "client_ip");
     const cJSON* server_ip = cJSON_GetObjectItem(json, "server_ip");
 
     const cJSON* udp_size = cJSON_GetObjectItem(json, "udp_payload_size");
@@ -72,6 +74,7 @@ void load_config(const char* filename)
         && server_udp_port && cJSON_IsNumber(server_udp_port)
         && uncorp_tcp_head && cJSON_IsNumber(uncorp_tcp_head)
         && uncorp_tcp_tail && cJSON_IsNumber(uncorp_tcp_tail)
+        && client_ip && cJSON_IsString(client_ip)
         && server_ip && cJSON_IsString(server_ip)
         && udp_size && cJSON_IsNumber(udp_size)
         && num_of_udp_packets && cJSON_IsNumber(num_of_udp_packets)
@@ -85,6 +88,7 @@ void load_config(const char* filename)
         UNCORP_TCP_HEAD = uncorp_tcp_head->valueint;
         UNCORP_TCP_TAIL = uncorp_tcp_tail->valueint;
 
+        strcpy(CLIENT_IP, client_ip->valuestring);
         strcpy(SERVER_IP, server_ip->valuestring);
         
         UDP_SIZE = udp_size->valueint;

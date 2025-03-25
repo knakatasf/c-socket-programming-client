@@ -103,13 +103,14 @@ cp config.example.json config.json
 Modify `config.json` with the appropriate parameters. **Do not change the keys** in the JSON file.
 
 #### **Configuration Parameters**
-- **`pre_tcp_port`** *(Integer)* – Port used for the **pre-probing phase** (sends JSON data to the server).
-- **`post_tcp_port`** *(Integer)* – Port used for the **post-probing phase** (sends results to the client).
-- **`client_udp_port`** *(Integer)* – Client's port for sending UDP packet trains.
-- **`server_udp_port`** *(Integer)* – Server's port for receiving UDP packet trains.
-- **`uncorp_tcp_head`** *(Integer)* – Client's port for sending the **head SYN packet** to the server.
-- **`uncorp_tcp_tail`** *(Integer)* – Client's port for sending the **tail SYN packet** to the server.
-- **`server_ip`** *(String)* – IP address of the server.
+- **`pre_tcp_port`** *(Integer)* – [For Client-Server mode] Server's port used for the **pre-probing phase** receiving JSON data.
+- **`post_tcp_port`** *(Integer)* – [For Client-Server mode] Server's Port used for the **post-probing phase** sends the result.
+- **`client_udp_port`** *(Integer)* – [For Client-Server mode] Client's port for sending UDP packet trains.
+- **`server_udp_port`** *(Integer)* – [For Client-Server mode] Server's port for receiving UDP packet trains.
+- **`uncorp_tcp_head`** *(Integer)* – [For Standalone mode] Server's port for the **head SYN packet**, which should be closed.
+- **`uncorp_tcp_tail`** *(Integer)* – [For Standalone mode] Server's port for the **tail SYN packet**, which should be closed.
+- **`client_ip`** *(String)* – IP address of the *client*.
+- **`server_ip`** *(String)* – IP address of the *server*.
 - **`udp_payload_size`** *(Integer)* – Size of each UDP packet in bytes.
 - **`inter_measurement_time`** *(Integer)* – Time (in seconds) the client waits between sending **zero-packet** and **random-packet** trains.
 - **`num_of_udp_packets`** *(Integer)* – Number of packets in each train.
