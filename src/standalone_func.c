@@ -24,7 +24,7 @@ struct ipheader* populate_ipheader(char datagram[], const char* client_ip, struc
     iph->ip_v = 4; // IPv4
     iph->ip_tos = 0;
     iph->ip_len = htons(sizeof(struct ipheader) + sizeof(struct tcpheader) + payload_size); // The total size of the packet
-    iph->ip_id = htons(54321);
+    iph->ip_id = htons(IP_HEADER_ID);
     iph->ip_off = htons(IP_DF);
     iph->ip_ttl = TTL;
     iph->ip_p = protocol_type; // The protocol follows this ipheader (udp or tcp)
@@ -47,14 +47,14 @@ struct tcpheader* populate_tcpheader(char datagram[], const char* client_ip,
     /* The pointer of tcpheader points to the next to ipheader */
     struct tcpheader* tcph = (struct tcpheader*)(datagram + sizeof(struct ipheader));
 
-    tcph->th_sport = htons(54321); // Placeholder
+    tcph->th_sport = htons(TCP_PORT_STANDALONE); // Placeholder
     tcph->th_dport = server_addr->sin_port; // Server's port
     tcph->th_seq = htonl(0);
     tcph->th_ack = 0;
     tcph->th_x2 = 0;
     tcph->th_off = 5; // 20 bytes 
     tcph->th_flags = flag; // Sets flags;
-    tcph->th_win = htons(8192);
+    tcph->th_win = htons(TCP_WIN_SIZE);
     tcph->th_sum = 0;
     tcph->th_urp = 0;
 
@@ -108,7 +108,7 @@ struct udpheader* populate_udpheader(char datagram[], const char* client_ip, str
     /* The pointer of udpheader points to the next to ipheader */
     struct udpheader* udph = (struct udpheader*)(datagram + sizeof(struct ipheader));
 
-    udph->uh_sport = htons(65432); // Placeholder
+    udph->uh_sport = htons(UDP_PORT_STANDALONE); // Placeholder
     udph->uh_dport = server_addr->sin_port; // The server's port
     udph->uh_len = htons(sizeof(struct udpheader) + payload_size); // The udp packet size = udp header + payload
     udph->uh_check = 0;
@@ -214,7 +214,7 @@ void send_syn_packet(const int sock, const struct sockaddr_in sin,
 int send_syn_and_train(void* arg)
 {
     /* Before sending the SYN and packet trains, prepare everything */
-    int tcp_socket = open_tcp_raw_socket(60); // 60 secs is reasonable for timeout of RST listener socket 
+    int tcp_socket = open_tcp_raw_socket(TIME_OUT_FOR_SOCKET); // 60 secs is reasonable for timeout of RST listener socket 
 
     /* Prepare the server's ip address and ports */
     in_addr_t server_addr = inet_addr(SERVER_IP);
@@ -228,7 +228,7 @@ int send_syn_and_train(void* arg)
     memset(&udp_sin, 0, sizeof(udp_sin));
     udp_sin.sin_family = AF_INET;
     udp_sin.sin_addr.s_addr = server_addr;
-    udp_sin.sin_port = htons(7777); // Port for the udp packet trains
+    udp_sin.sin_port = htons(SERVER_UDP_PORT_STANDALONE); // Port for the udp packet trains
 
     memset(&post_sin, 0, sizeof(post_sin));
     post_sin.sin_family = AF_INET;
@@ -281,7 +281,7 @@ long receive_rsts(const int sock)
 {
     struct sockaddr_in server_addr;
     socklen_t addr_len = sizeof(server_addr);
-    char buffer[1024];
+    char buffer[APP_SOCK_BUFFER_SIZE];
     struct timeval received_time[2]; // Expects 2 RST packets' arrival time
 
     struct ipheader* recv_iph;

@@ -11,6 +11,14 @@
 #define THRESHOLD 100 // 100 ms
 #define TIME_OUT_FOR_SOCKET 60
 
+#define IP_HEADER_ID 54321 // IP header's ID
+#define TCP_WIN_SIZE 8192 // TCP's window size
+#define TCP_PORT_STANDALONE 54321 // Client's port used for head and tail SYNs
+#define UDP_PORT_STANDALONE 65432 // Client's port used for packet trains for standalone mode
+#define SERVER_UDP_PORT_STANDALONE 7777 // Server's port used for standalone mode, which should be closed
+
+#define APP_SOCK_BUFFER_SIZE 1024 // Socker buffer size at the application layer level
+
 extern int PRE_TCP_PORT; // The server's port for pre-probing; default 7777
 extern int POST_TCP_PORT; // The server's port for post-probing; default 6666
 extern int CLIENT_UDP_PORT; // The client's port for probing; default 9876
