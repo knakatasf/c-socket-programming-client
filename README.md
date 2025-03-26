@@ -1,5 +1,3 @@
-![image](https://github.com/user-attachments/assets/6b1b9e61-7747-49c9-8eb4-590eecf7b936)
-
 # C Socket Programming - Compression Detection Application
 
 ## **1. Developer Information**
